@@ -1,19 +1,81 @@
 #include <string>
 #include <iostream>
+#include <algorithm>
+#include <limits>
 
-// macro stringification needed
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
-
-int main(int argc, const char * argv[]) {
+/**
+ * Print the __CUDA_ARCH_LIST__ to stdout. It is a list of integers in a macro (not a string) so macro faff is required.
+ */
+void print_cuda_arch_list() {
 #if defined(__CUDA_ARCH_LIST__)
-    #pragma message("usable" STR((__CUDA_ARCH_LIST__)))
+    // macro stringification needed
+    #define STR_HELPER(x) #x
+    #define STR(x) STR_HELPER(x)
+    // #pragma message("usable" STR((__CUDA_ARCH_LIST__)))
     std::string arch_list_str = STR((__CUDA_ARCH_LIST__));
+    #undef STR_HELPER
+    #undef STR
     if (arch_list_str.length() >= 2 && arch_list_str.front() == '(' && arch_list_str.back() == ')') {
         arch_list_str = arch_list_str.substr(1, arch_list_str.length() - 2);
     }
     std::cout << arch_list_str << std::endl;
-#else 
+#else
     #error "__CUDA_ARCH_LIST__ is not defined"
-#endif 
+#endif
+}
+
+/**
+ * Base case for getting the minium value integer value from a macro-defined list of integers using recursion.
+ */
+constexpr int recursive_min_int(int a) {
+    return a;
+}
+/**
+ * Recursive method to get the the minium value integer value from a macro-defined list of integers provided as independent arguments
+ */
+template <typename... Args>
+constexpr int recursive_min_int(int a, Args... tail) {
+    return std::min(a, recursive_min_int(tail...));
+}
+/**
+ * Get thge minimum cuda arch using recursion, or 0 if required macro is missing.
+ */
+constexpr int recursive_min_cuda_arch() {
+    #if defined(__CUDA_ARCH_LIST__)
+        // macro nonsense to pass the comma separated macro as function arguments to the variadic template function
+        #define MIN_INT_FROM_MACROLIST(...) recursive_min_int(__VA_ARGS__)
+        return MIN_INT_FROM_MACROLIST(__CUDA_ARCH_LIST__);
+        #undef MIN_INT_FROM_MACROLIST
+    #else
+        // return a defualt value, 0 or intmax would make sense depending on usage.
+        return 0;
+    #endif
+}
+
+/**
+ * Get the minimum cuda arch trusting that the __CUDA_ARCH_LIST__ is sorted as documented, by just getting the first macro function argument.
+ */
+constexpr int macro_min_cuda_arch(){
+#if defined(__CUDA_ARCH_LIST__)
+    #define GET_FIRST_ARG(A, ...) A
+    #define GET_FIRST_ARG_WRAPPER(LIST) GET_FIRST_ARG(LIST)
+    #define MIN_ARCH GET_FIRST_ARG_WRAPPER(__CUDA_ARCH_LIST__)
+    // The result is a compile-time constant integer:
+    return MIN_ARCH;
+    #undef MIN_ARCH
+    #undef GET_FIRST_ARG_WRAPPER
+    #undef GET_FIRST_ARG
+#else
+    return 0;
+#endif
+}
+
+/**
+ * Print the value of __CUDA_ARCH_LIST__ to stdout, and then the minimum value from that list on separate lines.
+ *
+ */
+int main(int argc, const char * argv[]) {
+    print_cuda_arch_list();
+    std::cout << "recursive min: " << recursive_min_cuda_arch() << std::endl;
+    std::cout << "macro min: " << macro_min_cuda_arch() << std::endl;
 }
