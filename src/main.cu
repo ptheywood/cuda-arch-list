@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <limits>
+#include <array>
 
 /**
  * Get the __CUDA_ARCH_LIST__ in a std::string.
@@ -23,6 +24,29 @@ constexpr std::string_view string_cuda_arch_list() {
     return arch_list_str;
 #else
     #error "__CUDA_ARCH_LIST__ is not defined"
+#endif
+}
+
+/**
+ * Templated variadic template constexpr method which returns a std::array from a number of arguments
+ */
+template <typename... Args>
+constexpr auto macro_to_array(Args... values) {
+    constexpr std::size_t N = sizeof...(Args);
+    return std::array<int, N>{ (static_cast<int>(values))... };
+}
+
+/**
+ * Get __CUDA_ARCH_LIST__ as a constexpr std::array<int, _>
+ */
+constexpr auto array_cuda_arch_list() {
+#if defined(__CUDA_ARCH_LIST__)
+    // Macro wrapper for getting the __CUDA_ARCH_LIST__ as a std::array of int
+    #define ARRAY_HELPER() macro_to_array<int>(__CUDA_ARCH_LIST__)
+    return ARRAY_HELPER();
+    #undef ARRAY_HELPER
+#else
+    return std::array<int, 1>{0};
 #endif
 }
 
@@ -80,4 +104,10 @@ int main(int argc, const char * argv[]) {
     std::cout << string_cuda_arch_list() << std::endl;
     std::cout << "recursive min: " << recursive_min_cuda_arch() << std::endl;
     std::cout << "macro min: " << macro_min_cuda_arch() << std::endl;
+    constexpr auto archs = array_cuda_arch_list();
+    for (std::size_t idx = 0; idx < archs.size(); idx++) {
+        if (idx != 0) std::cout << ",";
+        std::cout << archs[idx] / 10;
+    }
+    std::cout << std::endl;
 }
