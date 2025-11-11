@@ -4,21 +4,23 @@
 #include <limits>
 
 /**
- * Print the __CUDA_ARCH_LIST__ to stdout. It is a list of integers in a macro (not a string) so macro faff is required.
+ * Get the __CUDA_ARCH_LIST__ in a std::string.
+ * 
+ * It is a list of integers in a macro (not a string) so macro faff is required.
  */
-void print_cuda_arch_list() {
+constexpr std::string_view string_cuda_arch_list() {
 #if defined(__CUDA_ARCH_LIST__)
     // macro stringification needed
     #define STR_HELPER(x) #x
     #define STR(x) STR_HELPER(x)
     // #pragma message("usable" STR((__CUDA_ARCH_LIST__)))
-    std::string arch_list_str = STR((__CUDA_ARCH_LIST__));
+    std::string_view arch_list_str = STR((__CUDA_ARCH_LIST__));
     #undef STR_HELPER
     #undef STR
     if (arch_list_str.length() >= 2 && arch_list_str.front() == '(' && arch_list_str.back() == ')') {
         arch_list_str = arch_list_str.substr(1, arch_list_str.length() - 2);
     }
-    std::cout << arch_list_str << std::endl;
+    return arch_list_str;
 #else
     #error "__CUDA_ARCH_LIST__ is not defined"
 #endif
@@ -75,7 +77,7 @@ constexpr int macro_min_cuda_arch(){
  *
  */
 int main(int argc, const char * argv[]) {
-    print_cuda_arch_list();
+    std::cout << string_cuda_arch_list() << std::endl;
     std::cout << "recursive min: " << recursive_min_cuda_arch() << std::endl;
     std::cout << "macro min: " << macro_min_cuda_arch() << std::endl;
 }
