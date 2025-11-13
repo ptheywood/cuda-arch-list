@@ -80,21 +80,45 @@ constexpr int recursive_min_cuda_arch() {
 
 /**
  * Get the minimum cuda arch trusting that the __CUDA_ARCH_LIST__ is sorted as documented, by just getting the first macro function argument.
+ *
+ * @note MSVC is unhappy with this version.
+ *
  */
 constexpr int macro_min_cuda_arch(){
-#if defined(__CUDA_ARCH_LIST__)
-    #define GET_FIRST_ARG(A, ...) A
-    #define GET_FIRST_ARG_WRAPPER(LIST) GET_FIRST_ARG(LIST)
-    #define MIN_ARCH GET_FIRST_ARG_WRAPPER(__CUDA_ARCH_LIST__)
-    // The result is a compile-time constant integer:
-    return MIN_ARCH;
-    #undef MIN_ARCH
-    #undef GET_FIRST_ARG_WRAPPER
-    #undef GET_FIRST_ARG
-#else
-    return 0;
+#if ! defined(_MSC_VER)
+    #if defined(__CUDA_ARCH_LIST__)
+        #define GET_FIRST_ARG(A, ...) A
+        #define GET_FIRST_ARG_WRAPPER(LIST) GET_FIRST_ARG(LIST)
+        #define MIN_ARCH GET_FIRST_ARG_WRAPPER(__CUDA_ARCH_LIST__)
+        // The result is a compile-time constant integer:
+        return MIN_ARCH;
+        #undef MIN_ARCH
+        #undef GET_FIRST_ARG_WRAPPER
+        #undef GET_FIRST_ARG
+    #endif
 #endif
+    // fallback to 0.
+    return 0;
 }
+
+/**
+ * Get the minimum cuda arch trusting that the __CUDA_ARCH_LIST__ is sorted as documented, via a std::array to avoid macro issues on msvc
+ *
+ */
+constexpr int array_min_cuda_arch(){
+#if defined(__CUDA_ARCH_LIST__)
+    // Macro wrapper for getting the __CUDA_ARCH_LIST__ as a std::array of int
+    #define ARRAY_HELPER() macro_to_array<int>(__CUDA_ARCH_LIST__)
+    auto archs = ARRAY_HELPER();
+    #undef ARRAY_HELPER
+    if (archs.size() > 0) {
+        return archs[0] / 10;
+    }
+#endif
+    // fallback to 0.
+    return 0;
+}
+
 
 /**
  * Print the value of __CUDA_ARCH_LIST__ to stdout, and then the minimum value from that list on separate lines.
@@ -104,6 +128,7 @@ int main(int argc, const char * argv[]) {
     std::cout << string_cuda_arch_list() << std::endl;
     std::cout << "recursive min: " << recursive_min_cuda_arch() << std::endl;
     std::cout << "macro min: " << macro_min_cuda_arch() << std::endl;
+    std::cout << "array min: " << array_min_cuda_arch() << std::endl;
     constexpr auto archs = array_cuda_arch_list();
     for (std::size_t idx = 0; idx < archs.size(); idx++) {
         if (idx != 0) std::cout << ",";
